@@ -9,7 +9,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	domain := "example.com"
+	domain := "baidu.com"
 	dnsServer := "8.8.8.8:53"
 	resolver := &net.Resolver{
 		PreferGo: true,
