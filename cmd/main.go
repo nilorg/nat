@@ -2,66 +2,55 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"net"
-	"time"
+	"os/signal"
+	"runtime"
+	"syscall"
+
+	_ "github.com/nilorg/nat/pkg/conf"
+	"github.com/nilorg/nat/pkg/config"
+	"github.com/nilorg/nat/pkg/natx"
+	"github.com/nilorg/nat/pkg/watch"
+	"github.com/nilorg/pkg/zlog"
+	"github.com/spf13/viper"
 )
 
+func init() {
+	// 初始化线程数量
+	runtime.GOMAXPROCS(runtime.NumCPU())
+	zlog.InitForViper(viper.GetViper())
+}
+
 func main() {
-	ctx := context.Background()
-	domain := "baidu.com"
-	dnsServer := "8.8.8.8:53"
-	resolver := &net.Resolver{
-		PreferGo: true,
-		Dial: func(ctx context.Context, _, address string) (net.Conn, error) {
-			dialer := net.Dialer{
-				Timeout: 5 * time.Second,
-			}
-			return dialer.DialContext(ctx, "udp", dnsServer)
-		},
-	}
-	ips, err := resolver.LookupIP(ctx, "ip4", domain)
-	if err != nil {
-		fmt.Println("域名解析错误:", err)
-		return
-	}
-	fmt.Println("初始解析结果:")
-	printIPs(ips)
+	// 监控系统信号和创建 Context 现在一步搞定
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	// 在收到信号的时候，会自动触发 ctx 的 Done ，这个 stop 是不再捕获注册的信号的意思，算是一种释放资源。
+	defer stop()
 
-	time.Sleep(30 * time.Second)
+	ch := watch.GetChannel()
+	go natx.AutoSet(ctx, ch)
 
-	newIPs, err := resolver.LookupIP(ctx, "ip4", domain)
-	if err != nil {
-		fmt.Println("域名解析错误:", err)
+	portForwards := viper.Get("port-forward").([]interface{})
+	if portForwards == nil {
+		zlog.WithSugared(ctx).Fatalln("port-forward is nil")
 		return
 	}
 
-	fmt.Println("30秒后的解析结果:")
-	printIPs(newIPs)
-
-	if !ipsEqual(ips, newIPs) {
-		fmt.Println("域名解析发生了变化")
-	} else {
-		fmt.Println("域名解析未发生变化")
-	}
-}
-
-func printIPs(ips []net.IP) {
-	for _, ip := range ips {
-		fmt.Println(ip.String())
-	}
-}
-
-func ipsEqual(ips1, ips2 []net.IP) bool {
-	if len(ips1) != len(ips2) {
-		return false
-	}
-
-	for i := range ips1 {
-		if !ips1[i].Equal(ips2[i]) {
-			return false
+	for _, portForwardConf := range portForwards {
+		values := portForwardConf.(map[string]interface{})
+		typ := values["type"].(string)
+		port := values["port"].(int)
+		remoteDomain := values["remote_domain"].(string)
+		remotePort := values["remote_port"].(int)
+		timing := values["timing"].(int)
+		portForward := &config.PortForward{
+			Type:         typ,
+			Port:         port,
+			RemoteDomain: remoteDomain,
+			RemotePort:   remotePort,
+			Timing:       timing,
 		}
+		go watch.Watch(ctx, portForward)
 	}
 
-	return true
+	<-ctx.Done()
 }

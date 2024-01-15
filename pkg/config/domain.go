@@ -4,22 +4,19 @@ import (
 	"io/fs"
 	"os"
 	"path"
-	"runtime"
+
+	"github.com/nilorg/nat/pkg/runtimex"
 )
 
 // windows写配置文件到用户目录下隐藏文件,~/.nilorg/nat/domain/www.nilorg.com.conf
 // linux写配置文件到/etc/nilorg/nat/domain/www.nilorg.com.conf
 
 // 文件后缀
-const FileSuffix = ".conf"
-
-func isWindows() bool {
-	return runtime.GOOS == "windows"
-}
+const fileSuffix = ".conf"
 
 func getConfigPath() (dir string, err error) {
 	// 判断系统类型
-	if isWindows() {
+	if runtimex.IsWindows() {
 		var homeDir string
 		homeDir, err = os.UserHomeDir()
 		if err != nil {
@@ -55,7 +52,7 @@ func SetDomain(d *Domain) (err error) {
 		}
 	}
 	// 写入配置文件
-	confPath = path.Join(confPath, d.Domain+FileSuffix)
+	confPath = path.Join(confPath, d.Domain+fileSuffix)
 	err = os.WriteFile(confPath, []byte(d.Ip), 0777)
 	return
 }
@@ -75,7 +72,7 @@ func GetDomain(domain string) (d *Domain, err error) {
 		return
 	}
 	// 读取配置文件
-	confPath = path.Join(confPath, domain+FileSuffix)
+	confPath = path.Join(confPath, domain+fileSuffix)
 	var buf []byte
 	buf, err = os.ReadFile(confPath)
 	if err != nil {
@@ -103,7 +100,7 @@ func DelDomain(domain string) (err error) {
 		return
 	}
 	// 删除配置文件
-	confPath = path.Join(confPath, domain+".conf")
+	confPath = path.Join(confPath, domain+fileSuffix)
 	err = os.Remove(confPath)
 	return
 }
@@ -138,7 +135,7 @@ func GetDomains() (ds []*Domain, err error) {
 			return
 		}
 		ds = append(ds, &Domain{
-			Domain: file.Name()[:len(file.Name())-len(FileSuffix)],
+			Domain: file.Name()[:len(file.Name())-len(fileSuffix)],
 			Ip:     string(buf),
 		})
 	}

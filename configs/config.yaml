@@ -1,0 +1,8 @@
+dns: 8.8.8.8:53
+
+port-forward:
+  - type: "tcp"
+    port: 80
+    remote_domain: "baidu.com"
+    remote_port: 80
+    timing: 30000
