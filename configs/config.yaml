@@ -1,5 +1,7 @@
 dns: 8.8.8.8:53
 
+db: "configs/nat.db"
+
 port-forward:
   - type: "tcp"
     port: 80

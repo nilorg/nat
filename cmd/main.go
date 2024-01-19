@@ -6,9 +6,11 @@ import (
 	"runtime"
 	"syscall"
 
-	_ "github.com/nilorg/nat/pkg/conf"
+	"github.com/nilorg/nat/internal/module"
+	_ "github.com/nilorg/nat/internal/module/conf"
 	"github.com/nilorg/nat/pkg/config"
 	"github.com/nilorg/nat/pkg/natx"
+	"github.com/nilorg/nat/pkg/runtimex"
 	"github.com/nilorg/nat/pkg/watch"
 	"github.com/nilorg/pkg/zlog"
 	"github.com/spf13/viper"
@@ -25,6 +27,8 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	// 在收到信号的时候，会自动触发 ctx 的 Done ，这个 stop 是不再捕获注册的信号的意思，算是一种释放资源。
 	defer stop()
+
+	module.Init(ctx)
 
 	ch := watch.GetChannel()
 	go natx.AutoSet(ctx, ch)
@@ -53,4 +57,14 @@ func main() {
 	}
 
 	<-ctx.Done()
+
+	zlog.Sugared.Infof("Stopped monitoring.")
+	zlog.Sync()
+}
+
+// 检查系统环境是否支持
+func checkSystem(ctx context.Context) {
+	if runtimex.IsWindows() {
+
+	}
 }
