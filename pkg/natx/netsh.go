@@ -36,6 +36,15 @@ func (n *netshNAT) Set(ctx context.Context, typ Type, localIPV IPV, localIP stri
 
 func (n *netshNAT) Remove(ctx context.Context, typ Type, localIPV IPV, localIP string, localPort int, remoteIPV IPV, remoteIP string, remotePort int) (err error) {
 	zlog.WithSugared(ctx).Infoln("netshNAT Remove.")
+	if typ != TypeTCP && typ != TypeUDP {
+		err = ErrNatRemove
+		return
+	}
+	if localIPV != IPv4 && localIPV != IPv6 {
+		err = ErrNatRemove
+		return
+	}
+	// netsh interface portproxy delete v4tov4 listenport=8080 listenaddress=127.0.0.1
 	_, err = exec.CommandContext(ctx, "netsh", "interface", "portproxy", "delete", n.ipv(localIPV, remoteIPV), fmt.Sprintf("listenport=%d", localPort), fmt.Sprintf("listenaddress=%s", localIP)).Output()
 	if err != nil {
 		zlog.WithSugared(ctx).Errorf("netshNAT Remove error: %s", err)
@@ -47,6 +56,15 @@ func (n *netshNAT) Remove(ctx context.Context, typ Type, localIPV IPV, localIP s
 
 func (n *netshNAT) Exist(ctx context.Context, typ Type, localIPV IPV, localIP string, localPort int, remoteIPV IPV, remoteIP string, remotePort int) (flag bool, err error) {
 	zlog.WithSugared(ctx).Infoln("netshNAT Exist.")
+	if typ != TypeTCP && typ != TypeUDP {
+		err = ErrNatExist
+		return
+	}
+	if localIPV != IPv4 && localIPV != IPv6 {
+		err = ErrNatExist
+		return
+	}
+	// netsh interface portproxy show v4tov4 listenport=8080 listenaddress=127.0.0.1
 	_, err = exec.CommandContext(ctx, "netsh", "interface", "portproxy", "show", n.ipv(localIPV, remoteIPV), fmt.Sprintf("listenport=%d", localPort), fmt.Sprintf("listenaddress=%s", localIP), fmt.Sprintf("connectport=%d", remotePort), fmt.Sprintf("connectaddress=%s", remoteIP)).Output()
 	if err != nil {
 		zlog.WithSugared(ctx).Errorf("netshNAT Exist error: %s", err)
